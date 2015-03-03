@@ -25,8 +25,8 @@ float fDt;                          // sredni czas pomiedzy dwoma kolejnymi cykl
 long czas_cyklu_WS,licznik_sym;     // zmienne pomocnicze potrzebne do obliczania fDt
 float sr_czestosc;                  // srednia czestosc wysylania ramek w [ramkach/s]
 
-multicast_net *multi_reciv;         // wsk do obiektu zajmujacego sie odbiorem komunikatow
-multicast_net *multi_send;          //   -||-  wysylaniem komunikatow
+unicast_net *uni_reciv;         // wsk do obiektu zajmujacego sie odbiorem komunikatow
+unicast_net *uni_send;          //   -||-  wysylaniem komunikatow
 
 HANDLE threadReciv;                 // uchwyt w¹tku odbioru komunikatów
 extern HWND okno;                   // uchwyt okna
@@ -52,20 +52,45 @@ struct Ramka                                    // podstawowa struktura komunika
    long czas_wyslania;
 };
 
+//helper functions
+unsigned long int zamienIPNaLong(char ipadr[])
+{
+	unsigned long int ip = 0, val;
+	char *tok, *ptr;
+	tok = strtok(ipadr, ".");
+	while (tok != NULL)
+	{
+		val = strtoul(tok, &ptr, 0);
+		ip = (ip << 8) + val;
+		tok = strtok(NULL, ".");
+	}
+	return(ip);
+}
+
+//void zamienLongNaIP(int ip)
+//{
+//	unsigned char bytes[4];
+//	bytes[0] = ip & 0xFF;
+//	bytes[1] = (ip >> 8) & 0xFF;
+//	bytes[2] = (ip >> 16) & 0xFF;
+//	bytes[3] = (ip >> 24) & 0xFF;
+//	printf("%d.%d.%d.%d\n", bytes[3], bytes[2], bytes[1], bytes[0]);
+//}
 
 //******************************************
 // Funkcja obs³ugi w¹tku odbioru komunikatów 
 DWORD WINAPI WatekOdbioruKom(void *ptr)
 {
-  multicast_net *pmt_net=(multicast_net*)ptr;  // wskaŸnik do obiektu klasy multicast_net
+  unicast_net *pmt_net=(unicast_net*)ptr;  // wskaŸnik do obiektu klasy unicast_net
   int rozmiar;                                 // liczba bajtów ramki otrzymanej z sieci
   Ramka ramka;
   StanObiektu stan;
+  unsigned long adres_nad = 0;
 
 	while(1)
 	{
 
-		rozmiar = pmt_net->reciv((char*)&ramka,sizeof(Ramka));   // oczekiwanie na nadejœcie ramki 
+		rozmiar = pmt_net->reciv((char*)&ramka, &adres_nad, sizeof(Ramka));   //TODO oczekiwanie na nadejœcie ramki 
 		stan = ramka.stan;
 
 		//fprintf(f,"odebrano stan iID = %d, ID dla mojego obiektu = %d\n",stan.iID,pMojObiekt->iID);
@@ -105,9 +130,9 @@ void PoczatekInterakcji()
    czas_cyklu_WS = clock();             // pomiar aktualnego czasu
    licznik_sym = 1;
 
-   // obiekty sieciowe typu multicast (z podaniem adresu IP wirtualnej grupy oraz numeru portu)
-   multi_reciv = new multicast_net("224.12.12.20",10001);      // obiekt do odbioru ramek sieciowych
-   multi_send = new multicast_net("224.12.12.20",10001);       // obiekt do wysy³ania ramek
+   // obiekty sieciowe typu unicast (z podaniem numeru portu)
+   uni_reciv = new unicast_net(10001);      // obiekt do odbioru ramek sieciowych
+   uni_send = new unicast_net(10001);       // obiekt do wysy³ania ramek
 
 
    // uruchomienie watku obslugujacego odbior komunikatow 
@@ -115,7 +140,7 @@ void PoczatekInterakcji()
           NULL,                        // no security attributes
           0,                           // use default stack size
           WatekOdbioruKom,                // thread function
-          (void *)multi_reciv,               // argument to thread function
+          (void *)uni_reciv,               // argument to thread function
           0,                           // use default creation flags
           &dwThreadId);                // returns the thread identifier         
 }
@@ -149,7 +174,7 @@ void Cykl_WS()
    ramka.stan = pMojObiekt->Stan();               // stan w³asnego obiektu 
    
    // wyslanie komunikatu o stanie obiektu przypisanego do aplikacji (pMojObiekt):  
-   int iRozmiar = multi_send->send((char*)&ramka,sizeof(Ramka));          
+   int iRozmiar = uni_send->send((char*)&ramka, "224.12.12.25", sizeof(Ramka)); //TODO
 }
 
 // *****************************************************************
