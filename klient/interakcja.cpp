@@ -112,8 +112,8 @@ void PoczatekInterakcji()
 	// obiekty sieciowe typu multicast (z podaniem adresu IP wirtualnej grupy oraz numeru portu)
 	multi_reciv = new multicast_net("224.12.12.20", 10001);      // obiekt do odbioru ramek sieciowych
 	multi_send = new multicast_net("224.12.12.20", 10001);       // obiekt do wysy³ania ramek
-	uni_recv = new unicast_net(1001);
-	uni_send = new unicast_net(1002);
+	uni_recv = new unicast_net(1002);
+	uni_send = new unicast_net(1001);
 
 	// uruchomienie watku obslugujacego odbior komunikatow 
 	threadReciv = CreateThread(
