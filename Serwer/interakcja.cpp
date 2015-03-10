@@ -117,7 +117,7 @@ void PoczatekInterakcji()
 		}
 		for (int i = 0; i<iLiczbaInnychOb; i++)
 		{
-			uni_send->send((char*)&stan, (char*)adresy[i], whatever);
+			uni_send->send((char*)&stan, adresy[i], whatever);
 		}
 	}
 }
