@@ -220,9 +220,12 @@ void Cykl_WS()
   // ------------  Miejsce na predykcjê stanu:
   for (int k=0;k<iLiczbaCudzychOb;k++)
   {
+	  //CudzeObiekty[k]->wPol += CudzeObiekty[k]->wV * fDt * (twA * fDt * fDt / 2);
+	  CudzeObiekty[k]->wPol += CudzeObiekty[k]->wA * fDt;
 
-
-
+	  float kat = CudzeObiekty[k]->wV_kat * fDt + (CudzeObiekty[k]->wA_kat * (fDt * fDt / 2)).dlugosc();
+	  CudzeObiekty[k]->qOrient = AsixToQuat(CudzeObiekty[k]->wV_kat, kat);
+	  CudzeObiekty[k]->wV_kat = CudzeObiekty[k]->wA_kat * fDt;
 
 
 
