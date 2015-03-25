@@ -233,22 +233,22 @@ void Cykl_WS()
 		//CudzeObiekty[k]->wV_kat = CudzeObiekty[k]->wA_kat * fDt;
 
 		// Dodanie kwaternionów
-		Wektor3 w_obrot = CudzeObiekty[k]->wV_kat*fDt + CudzeObiekty[k]->wA_kat*fDt*fDt / 2;
+		Wektor3 w_obrot = CudzeObiektyZSieci[k]->wV_kat*fDt + CudzeObiektyZSieci[k]->wA_kat*fDt*fDt / 2;
 		kwaternion q_obrot = AsixToQuat(w_obrot.znorm(), w_obrot.dlugosc());
 		CudzeObiekty[k]->qOrient = q_obrot*CudzeObiekty[k]->qOrient;
 
 		// Znalezienie kierunków: przód, góra, prawo
-		Wektor3 przod = CudzeObiekty[k]->qOrient.obroc_wektor(Wektor3(1, 0, 0));
-		Wektor3 gora = CudzeObiekty[k]->qOrient.obroc_wektor(Wektor3(0, 1, 0));
-		Wektor3 prawo = CudzeObiekty[k]->qOrient.obroc_wektor(Wektor3(0, 0, 1));
+		Wektor3 przod = CudzeObiektyZSieci[k]->qOrient.obroc_wektor(Wektor3(1, 0, 0));
+		Wektor3 gora = CudzeObiektyZSieci[k]->qOrient.obroc_wektor(Wektor3(0, 1, 0));
+		Wektor3 prawo = CudzeObiektyZSieci[k]->qOrient.obroc_wektor(Wektor3(0, 0, 1));
 
 		// Rzutowanie wektorów wV i wA na te sk³adowe
-		Wektor3 wV_przod = przod*((CudzeObiekty[k]->wV) ^ przod);
-		Wektor3 wV_gora = gora*((CudzeObiekty[k]->wV) ^ gora);
-		Wektor3 wV_prawo = prawo*((CudzeObiekty[k]->wV) ^ prawo);
-		Wektor3 wA_przod = przod*((CudzeObiekty[k]->wA) ^ przod);
-		Wektor3 wA_gora = gora*((CudzeObiekty[k]->wA) ^ gora);
-		Wektor3 wA_prawo = prawo*((CudzeObiekty[k]->wA) ^ prawo);
+		Wektor3 wV_przod = przod*((CudzeObiektyZSieci[k]->wV) ^ przod);
+		Wektor3 wV_gora = gora*((CudzeObiektyZSieci[k]->wV) ^ gora);
+		Wektor3 wV_prawo = prawo*((CudzeObiektyZSieci[k]->wV) ^ prawo);
+		Wektor3 wA_przod = przod*((CudzeObiektyZSieci[k]->wA) ^ przod);
+		Wektor3 wA_gora = gora*((CudzeObiektyZSieci[k]->wA) ^ gora);
+		Wektor3 wA_prawo = prawo*((CudzeObiektyZSieci[k]->wA) ^ prawo);
 
 		// Wszystkie sk³adowe i wygaszanie sk³adowych góra i prawo (/2)
 		//wV_gora = wV_gora * poziomWygaszania;
@@ -269,11 +269,11 @@ void Cykl_WS()
 		auto roznicaOrient = CudzeObiektyZSieci[k]->qOrient - CudzeObiekty[k]->qOrient;
 		//auto roznicaOrient = CudzeObiektyZSieci[k]->qOrient * inverse(CudzeObiekty[k]->qOrient);
 
-		CudzeObiekty[k]->wPol += roznicaPol * fDt;
-		CudzeObiekty[k]->wV += roznicaV * fDt;
+		CudzeObiekty[k]->wPol += roznicaPol / 100; //* fDt;
+		CudzeObiekty[k]->wV += roznicaV / 100; // *fDt;
 		//CudzeObiekty[k]->wA += roznicaA / 50;
 		CudzeObiekty[k]->wA = CudzeObiektyZSieci[k]->wA;
-		CudzeObiekty[k]->qOrient += roznicaOrient;
+		CudzeObiekty[k]->qOrient += roznicaOrient / 100;
 
 	} 
 
