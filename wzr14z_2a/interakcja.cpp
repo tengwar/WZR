@@ -6,7 +6,7 @@ uczestnikami WZR, sterowanie wirtualnymi obiektami
 
 bool czy_opoznienia = 0;            // symulacja opóŸnieñ w sieci 
 bool czy_zmn_czestosc = 1;          // symulacja ograniczonej czêstoœci (przepustowoœci) wysy³ania ramek  
-bool czy_test_pred = 1;             // testowanie algorytmu predykcji bez udzia³u cz³owieka
+bool czy_test_pred = 0;             // testowanie algorytmu predykcji bez udzia³u cz³owieka
 float poziomWygaszania = 1;
 
 #include <windows.h>
@@ -22,7 +22,8 @@ FILE *f = fopen("wzr_plik.txt","w");    // plik do zapisu informacji testowych
 ObiektRuchomy *pMojObiekt;          // obiekt przypisany do tej aplikacji
 Teren teren;
 int iLiczbaCudzychOb = 0;
-ObiektRuchomy *CudzeObiekty[1000];  // obiekty z innych aplikacji lub inne obiekty niz pCraft
+ObiektRuchomy *CudzeObiekty[1000];  // (przewidywane) obiekty z innych aplikacji lub inne obiekty niz pCraft
+ObiektRuchomy *CudzeObiektyZSieci[1000];  // prawdziwe obiekty z innych aplikacji lub inne obiekty niz pCraft
 int IndeksyOb[5000];                // tablica indeksow innych obiektow ulatwiajaca wyszukiwanie
 
 float fDt;                          // sredni czas pomiedzy dwoma kolejnymi cyklami symulacji i wyswietlania
@@ -82,7 +83,7 @@ DWORD WINAPI WatekOdbioru(void *ptr)
 
   while(1)
   {
-    rozmiar = pmt_net->reciv((char*)&ramka,sizeof(Ramka));   // oczekiwanie na nadejœcie ramki 
+    rozmiar = pmt_net->reciv((char*)&ramka,sizeof(Ramka));   // oczekiwanie na nadejœcie ramki
     stan = ramka.stan;
 
     //fprintf(f,"odebrano stan iID = %d, ID dla mojego obiektu = %d\n",stan.iID,pMojObiekt->iID);
@@ -92,13 +93,14 @@ DWORD WINAPI WatekOdbioru(void *ptr)
       if (IndeksyOb[stan.iID] == -1)        // nie ma jeszcze takiego obiektu w tablicy -> trzeba go
                                             // stworzyæ
       {
-        CudzeObiekty[iLiczbaCudzychOb] = new ObiektRuchomy();   
+        CudzeObiektyZSieci[iLiczbaCudzychOb] = new ObiektRuchomy();
+		CudzeObiekty[iLiczbaCudzychOb] = new ObiektRuchomy();
         IndeksyOb[stan.iID] = iLiczbaCudzychOb;     // wpis do tablicy indeksowanej numerami ID
-        // u³atwia wyszukiwanie, alternatyw¹ mo¿e byæ tabl. rozproszona           
-        //fprintf(f,"zarejestrowano %d obcy obiekt o ID = %d\n",iLiczbaCudzychOb-1,CudzeObiekty[iLiczbaCudzychOb]->iID);                                                                                      
-        iLiczbaCudzychOb++;     
+        // u³atwia wyszukiwanie, alternatyw¹ mo¿e byæ tabl. rozproszona
+        //fprintf(f,"zarejestrowano %d obcy obiekt o ID = %d\n",iLiczbaCudzychOb-1,CudzeObiekty[iLiczbaCudzychOb]->iID);
+        iLiczbaCudzychOb++;
       }                                                                    
-      CudzeObiekty[IndeksyOb[stan.iID]]->ZmienStan(stan);   // aktualizacja stanu obiektu obcego 			
+      CudzeObiektyZSieci[IndeksyOb[stan.iID]]->ZmienStan(stan);   // aktualizacja stanu obiektu obcego
     }
   }  // while(1)
   return 1;
@@ -221,6 +223,7 @@ void Cykl_WS()
 	// ------------  Miejsce na predykcjê stanu:
 	for (int k=0;k<iLiczbaCudzychOb;k++)
 	{
+
 		// Stare (z tablicy)
 		////CudzeObiekty[k]->wPol += CudzeObiekty[k]->wV * fDt * (twA * fDt * fDt / 2);
 		//CudzeObiekty[k]->wPol += CudzeObiekty[k]->wA * fDt;
@@ -259,6 +262,19 @@ void Cykl_WS()
 	  
 		CudzeObiekty[k]->wPol += (wV * fDt) + wA* fDt * fDt * 1 / 2;
 		CudzeObiekty[k]->wV += wA * fDt;
+
+		auto roznicaPol = CudzeObiektyZSieci[k]->wPol - CudzeObiekty[k]->wPol;
+		auto roznicaV = CudzeObiektyZSieci[k]->wV - CudzeObiekty[k]->wV;
+		auto roznicaA = CudzeObiektyZSieci[k]->wA - CudzeObiekty[k]->wA;
+		auto roznicaOrient = CudzeObiektyZSieci[k]->qOrient - CudzeObiekty[k]->qOrient;
+		//auto roznicaOrient = CudzeObiektyZSieci[k]->qOrient * inverse(CudzeObiekty[k]->qOrient);
+
+		CudzeObiekty[k]->wPol += roznicaPol * fDt;
+		CudzeObiekty[k]->wV += roznicaV * fDt;
+		//CudzeObiekty[k]->wA += roznicaA / 50;
+		CudzeObiekty[k]->wA = CudzeObiektyZSieci[k]->wA;
+		CudzeObiekty[k]->qOrient += roznicaOrient;
+
 	} 
 
 } // END Cykl_WS()
