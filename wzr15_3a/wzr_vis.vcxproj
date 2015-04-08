@@ -41,8 +41,6 @@
     <_ProjectFileVersion>12.0.21005.1</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>Debug\</OutDir>
-    <IntDir>Debug\</IntDir>
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -64,7 +62,6 @@
     <Link>
       <AdditionalOptions>opengl32.lib glu32.lib WSOCK32.LIB MPR.LIB WSOCK32.LIB MPR.LIB
  %(AdditionalOptions)</AdditionalOptions>
-      <OutputFile>F:\Studia\Semestr VI\Wirtualne zespoły robocze\Laborki\Lab3\wzr15_3a\Debug\wzr_vis.exe</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)GK-OpenGL.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
