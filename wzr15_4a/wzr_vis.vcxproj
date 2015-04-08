@@ -64,7 +64,7 @@
     <Link>
       <AdditionalOptions>opengl32.lib glu32.lib WSOCK32.LIB MPR.LIB WSOCK32.LIB MPR.LIB
  %(AdditionalOptions)</AdditionalOptions>
-      <OutputFile>$(OutDir)klient_wzr.exe</OutputFile>
+      <OutputFile>$(OutDir)wzr_vis.exe</OutputFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)GK-OpenGL.pdb</ProgramDatabaseFile>
       <SubSystem>Windows</SubSystem>
