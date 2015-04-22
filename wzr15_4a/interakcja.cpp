@@ -34,6 +34,8 @@ HANDLE threadReciv;                 // uchwyt w¹tku odbioru komunikatów
 extern HWND okno;       
 int SHIFTwcisniety = 0;            
 
+int targetIndex = 0;
+
 
 // Parametry widoku:
 Wektor3 kierunek_kamery = Wektor3(10,-3,-11);   // kierunek patrzenia
@@ -78,6 +80,58 @@ struct Ramka
 
 	StanObiektu stan;
 };
+
+
+void turn(Wektor3 kierunek)
+{
+	// wzi¹æ (iloczyn wektorowy od nas do celu i w przód) ^ w górê
+	Wektor3 w_przod = pMojObiekt->qOrient.obroc_wektor(Wektor3(1, 0, 0));
+	Wektor3 w_gora = pMojObiekt->qOrient.obroc_wektor(Wektor3(0, 1, 0));
+	float katDoCelu = -((kierunek * w_przod) ^ w_gora);
+	pMojObiekt->alfa = katDoCelu;
+
+	//float katDoCelu = atan2(kierunek.z, kierunek.x) - atan2(pMojObiekt->qOrient.z, pMojObiekt->qOrient.x);
+	////normalize to 0..2*Pi
+	//if (katDoCelu < 0) katDoCelu += 2 * M_PI;
+	if (katDoCelu < -(M_PI / 4))
+	{
+		pMojObiekt->alfa = -(M_PI / 4);
+	}
+	else if (katDoCelu >(M_PI / 4))
+	{
+		pMojObiekt->alfa = (M_PI / 4);
+	}
+	else
+	{
+		pMojObiekt->alfa = katDoCelu;
+	}
+}
+
+Wektor3 getDirectionToItem(int index)
+{
+	return teren.p[index].wPol - pMojObiekt->wPol;
+}
+
+int odleglosc(Wektor3 punkt1, Wektor3 punkt2)
+{
+	return (punkt1 - punkt2).dlugosc();
+}
+
+int getNearestItemIndex(typ type)
+{
+	int minOdl = INT_MAX;
+	int minIndeks = 0;
+	for (size_t i = 0; i < teren.liczba_przedmiotow_max; i++)
+	{
+		if (teren.p[i].typ == type && teren.p[i].do_wziecia && odleglosc(teren.p[i].wPol, pMojObiekt->wPol) < minOdl)
+		{
+			minOdl = odleglosc(teren.p[i].wPol, pMojObiekt->wPol);
+			minIndeks = i;
+		}
+	}
+	fprintf(f, "Nearest: = %d\n", minIndeks);
+	return minIndeks;
+}
 
 
 //******************************************
@@ -220,6 +274,7 @@ void PoczatekInterakcji()
 		0,                           // use default creation flags
 		&dwThreadId);                // returns the thread identifier
 
+	targetIndex = getNearestItemIndex(MONETA);
 }
 
 
@@ -310,7 +365,13 @@ void Cykl_WS()
 			ramka.typ_ramki = WZIECIE_PRZEDMIOTU; 
 			ramka.nr_przedmiotu = i;
 			ramka.stan = pMojObiekt->Stan(); 
-			int iRozmiar = multi_send->send_delayed((char*)&ramka,sizeof(Ramka));
+			int iRozmiar = multi_send->send_delayed((char*)&ramka, sizeof(Ramka));
+
+			// wybierz nastêpny cel
+			if (pMojObiekt->ilosc_paliwa < 5)
+				targetIndex = getNearestItemIndex(typ::BECZKA);
+			else
+				targetIndex = getNearestItemIndex(typ::MONETA);
 		}
 		else if ((teren.p[i].do_wziecia == 0)&&(teren.p[i].czy_ja_wzialem) &&
 			(teren.p[i].czy_odnawialny) &&
@@ -328,8 +389,15 @@ void Cykl_WS()
 	// --------------- MIEJSCE NA ALGORYTM STEROWANIA ---------------------
 	// (dobór si³y F w granicach (-2000 N, 4000 N), k¹ta skrêtu kó³ alfa (-pi/4, pi/4) oraz
 	// decyzji o hamowaniu ham w zale¿noœci od sytuacji)
-
-
+	if (pMojObiekt->wV.dlugosc() > 100)
+	{
+		pMojObiekt->F = 0;
+	}
+	else
+	{
+		pMojObiekt->F = 4000;
+	}
+	turn(getDirectionToItem(targetIndex));
 
 
 	// --------------------------------------------------------------------
@@ -343,26 +411,6 @@ void Cykl_WS()
 
 
 	// ------------------------------------------------------------------------
-}
-
-int odleglosc(Wektor3 punkt1, Wektor3 punkt2)
-{
-	return (punkt1 - punkt2).dlugosc();
-}
-
-int getNearestItemIndex(typ type)
-{
-	int minOdl = odleglosc(teren.p[0].wPol, pMojObiekt->wPol);
-	int minIndeks = 0;
-	for (size_t i = 0; i < teren.liczba_przedmiotow_max; i++)
-	{
-		if (teren.p[i].typ == type && odleglosc(teren.p[i].wPol, pMojObiekt->wPol) < minOdl)
-		{
-			minOdl = odleglosc(teren.p[i].wPol, pMojObiekt->wPol);
-			minIndeks = i;
-		}
-	}
-	return minIndeks;
 }
 
 // *****************************************************************
