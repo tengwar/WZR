@@ -7,6 +7,7 @@ uczestnikami WZR, sterowanie wirtualnymi obiektami
 bool czy_opoznienia = 0;            // symulacja opóŸnieñ w sieci 
 bool czy_zmn_czestosc = 1;          // symulacja ograniczonej czêstoœci (przepustowoœci) wysy³ania ramek  
 bool czy_test_pred = 0;             // testowanie algorytmu predykcji bez udzia³u cz³owieka
+float poziomWygaszania = 1;
 
 #include <windows.h>
 #include <time.h>
@@ -21,7 +22,8 @@ FILE *f = fopen("wzr_plik.txt","w");    // plik do zapisu informacji testowych
 ObiektRuchomy *pMojObiekt;          // obiekt przypisany do tej aplikacji
 Teren teren;
 int iLiczbaCudzychOb = 0;
-ObiektRuchomy *CudzeObiekty[1000];  // obiekty z innych aplikacji lub inne obiekty niz pCraft
+ObiektRuchomy *CudzeObiekty[1000];  // (przewidywane) obiekty z innych aplikacji lub inne obiekty niz pCraft
+ObiektRuchomy *CudzeObiektyZSieci[1000];  // prawdziwe obiekty z innych aplikacji lub inne obiekty niz pCraft
 int IndeksyOb[5000];                // tablica indeksow innych obiektow ulatwiajaca wyszukiwanie
 
 float fDt;                          // sredni czas pomiedzy dwoma kolejnymi cyklami symulacji i wyswietlania
@@ -81,7 +83,7 @@ DWORD WINAPI WatekOdbioru(void *ptr)
 
   while(1)
   {
-    rozmiar = pmt_net->reciv((char*)&ramka,sizeof(Ramka));   // oczekiwanie na nadejœcie ramki 
+    rozmiar = pmt_net->reciv((char*)&ramka,sizeof(Ramka));   // oczekiwanie na nadejœcie ramki
     stan = ramka.stan;
 
     //fprintf(f,"odebrano stan iID = %d, ID dla mojego obiektu = %d\n",stan.iID,pMojObiekt->iID);
@@ -91,13 +93,14 @@ DWORD WINAPI WatekOdbioru(void *ptr)
       if (IndeksyOb[stan.iID] == -1)        // nie ma jeszcze takiego obiektu w tablicy -> trzeba go
                                             // stworzyæ
       {
-        CudzeObiekty[iLiczbaCudzychOb] = new ObiektRuchomy();   
+        CudzeObiektyZSieci[iLiczbaCudzychOb] = new ObiektRuchomy();
+		CudzeObiekty[iLiczbaCudzychOb] = new ObiektRuchomy();
         IndeksyOb[stan.iID] = iLiczbaCudzychOb;     // wpis do tablicy indeksowanej numerami ID
-        // u³atwia wyszukiwanie, alternatyw¹ mo¿e byæ tabl. rozproszona           
-        //fprintf(f,"zarejestrowano %d obcy obiekt o ID = %d\n",iLiczbaCudzychOb-1,CudzeObiekty[iLiczbaCudzychOb]->iID);                                                                                      
-        iLiczbaCudzychOb++;     
+        // u³atwia wyszukiwanie, alternatyw¹ mo¿e byæ tabl. rozproszona
+        //fprintf(f,"zarejestrowano %d obcy obiekt o ID = %d\n",iLiczbaCudzychOb-1,CudzeObiekty[iLiczbaCudzychOb]->iID);
+        iLiczbaCudzychOb++;
       }                                                                    
-      CudzeObiekty[IndeksyOb[stan.iID]]->ZmienStan(stan);   // aktualizacja stanu obiektu obcego 			
+      CudzeObiektyZSieci[IndeksyOb[stan.iID]]->ZmienStan(stan);   // aktualizacja stanu obiektu obcego
     }
   }  // while(1)
   return 1;
@@ -144,92 +147,137 @@ void PoczatekInterakcji()
 // ****    aplikacji poza grafik¹ 
 void Cykl_WS()
 {
-  licznik_sym++;  
+	licznik_sym++;  
 
-  // obliczenie sumarycznej odleg³oœci pomiêdzy pojazdem ekstrapolowanym a rzeczywistym:
-  long indeks_cienia = -1;
-  for (long i=0;i<iLiczbaCudzychOb;i++) if (CudzeObiekty[i]->iID == pMojObiekt->iID) indeks_cienia = i;
-  sum_roznic_pol += (indeks_cienia > -1 ? (CudzeObiekty[indeks_cienia]->wPol - pMojObiekt->wPol).dlugosc() : 0);
+	// obliczenie sumarycznej odleg³oœci pomiêdzy pojazdem ekstrapolowanym a rzeczywistym:
+	long indeks_cienia = -1;
+	for (long i=0;i<iLiczbaCudzychOb;i++) if (CudzeObiekty[i]->iID == pMojObiekt->iID) indeks_cienia = i;
+	sum_roznic_pol += (indeks_cienia > -1 ? (CudzeObiekty[indeks_cienia]->wPol - pMojObiekt->wPol).dlugosc() : 0);
 
-  // obliczenie œredniej ró¿nicy k¹towej:
-  float kat = (indeks_cienia > -1 ? 
-    fabs(kat_pom_wekt2D(CudzeObiekty[indeks_cienia]->qOrient.obroc_wektor(Wektor3(1,0,0)),pMojObiekt->qOrient.obroc_wektor(Wektor3(1,0,0)) )) : 0);
-  kat = (fabs(kat-2*3.14159) ? kat > 3.14159 : kat);
-  sum_roznic_kat += kat;
+	// obliczenie œredniej ró¿nicy k¹towej:
+	float kat = (indeks_cienia > -1 ? 
+	fabs(kat_pom_wekt2D(CudzeObiekty[indeks_cienia]->qOrient.obroc_wektor(Wektor3(1,0,0)),pMojObiekt->qOrient.obroc_wektor(Wektor3(1,0,0)) )) : 0);
+	kat = (fabs(kat-2*3.14159) ? kat > 3.14159 : kat);
+	sum_roznic_kat += kat;
 
-  if (licznik_sym % 50 == 0)          // jeœli licznik cykli przekroczy³ pewn¹ wartoœæ, to
-  {                              // nale¿y na nowo obliczyæ œredni czas cyklu fDt
-    char text[200];
-    long czas_pop = czas_cyklu_WS;
-    czas_cyklu_WS = clock();
-    float fFps = (50*CLOCKS_PER_SEC)/(float)(czas_cyklu_WS-czas_pop);
-    if (fFps!=0) fDt=1.0/fFps; else fDt=1;
+	if (licznik_sym % 50 == 0)          // jeœli licznik cykli przekroczy³ pewn¹ wartoœæ, to
+	{                              // nale¿y na nowo obliczyæ œredni czas cyklu fDt
+		char text[200];
+		long czas_pop = czas_cyklu_WS;
+		czas_cyklu_WS = clock();
+		float fFps = (50*CLOCKS_PER_SEC)/(float)(czas_cyklu_WS-czas_pop);
+		if (fFps!=0) fDt=1.0/fFps; else fDt=1;
 
-    sprintf(text," %0.0f fps  %0.2fms  œr.czêstoœæ = %0.2f[r/s]  œr.odl = %0.3f[m]  œr.ro¿n.k¹t. = %0.3f[st]",
-      fFps,1000.0/fFps,sr_czestosc,sum_roznic_pol/licznik_sym,sum_roznic_kat/licznik_sym*180.0/3.14159);
-    SetWindowText(okno,text); // wyœwietlenie aktualnej iloœci klatek/s w pasku okna			
-  }   
+		sprintf(text," %0.0f fps  %0.2fms  œr.czêstoœæ = %0.2f[r/s]  œr.odl = %0.3f[m]  œr.ro¿n.k¹t. = %0.3f[st]",
+			fFps,1000.0/fFps,sr_czestosc,sum_roznic_pol/licznik_sym,sum_roznic_kat/licznik_sym*180.0/3.14159);
+		SetWindowText(okno,text); // wyœwietlenie aktualnej iloœci klatek/s w pasku okna
+	}   
 
-  if (czy_test_pred)  // obs³uga testu predykcji dla wybranego scenariusza
-  {
-    float czas = (float)(clock()-czas_start)/CLOCKS_PER_SEC;
-    long liczba_akcji = sizeof(scenariusz_testu)/(3*sizeof(float));
-    float suma_czasow = 0;
+	if (czy_test_pred)  // obs³uga testu predykcji dla wybranego scenariusza
+	{
+		float czas = (float)(clock()-czas_start)/CLOCKS_PER_SEC;
+		long liczba_akcji = sizeof(scenariusz_testu)/(3*sizeof(float));
+		float suma_czasow = 0;
 
-    long nr_akcji = -1;
-    for (long i=0;i<liczba_akcji;i++)
-    {
-      suma_czasow += scenariusz_testu[i][0];
-      if (czas < suma_czasow) {nr_akcji = i; break;}
-    }
+		long nr_akcji = -1;
+		for (long i=0;i<liczba_akcji;i++)
+		{
+			suma_czasow += scenariusz_testu[i][0];
+			if (czas < suma_czasow) {nr_akcji = i; break;}
+		}
 
-    fprintf(f,"liczba akcji = %d, czas = %f, nr akcji = %d\n",liczba_akcji,czas,nr_akcji);
+		fprintf(f,"liczba akcji = %d, czas = %f, nr akcji = %d\n",liczba_akcji,czas,nr_akcji);
 
-    if (nr_akcji > -1) // jesli wyznaczono nr akcji, wybieram sile i kat ze scenariusza
-    {
-      pMojObiekt->F = scenariusz_testu[nr_akcji][1]; 
-      pMojObiekt->alfa = scenariusz_testu[nr_akcji][2];
-    }
-    else // czas dobiegl konca -> koniec testu 
-    {
-      czy_test_pred = false;
-      char text[200];
-      sprintf(text,"Po czasie %3.2f[s]  œr.czêstoœæ = %0.2f[r/s]  œr.odl = %0.3f[m]  œr.ró¿n.k¹t. = %0.3f[st]",
-        czas,sr_czestosc,sum_roznic_pol/licznik_sym,sum_roznic_kat/licznik_sym*180.0/3.14159);
-      MessageBox(okno,text,"Test predykcji",MB_OK);		
-    }
-  } // if test predykcji
+		if (nr_akcji > -1) // jesli wyznaczono nr akcji, wybieram sile i kat ze scenariusza
+		{
+			pMojObiekt->F = scenariusz_testu[nr_akcji][1]; 
+			pMojObiekt->alfa = scenariusz_testu[nr_akcji][2];
+		}
+		else // czas dobiegl konca -> koniec testu 
+		{
+			czy_test_pred = false;
+			char text[200];
+			sprintf(text,"Po czasie %3.2f[s]  œr.czêstoœæ = %0.2f[r/s]  œr.odl = %0.3f[m]  œr.ró¿n.k¹t. = %0.3f[st]",
+			czas,sr_czestosc,sum_roznic_pol/licznik_sym,sum_roznic_kat/licznik_sym*180.0/3.14159);
+			MessageBox(okno,text,"Test predykcji",MB_OK);		
+		}
+	} // if test predykcji
 
-  pMojObiekt->Symulacja(fDt);                    // symulacja w³asnego obiektu
+	pMojObiekt->Symulacja(fDt);                    // symulacja w³asnego obiektu
 
-  Ramka ramka;                                    
-  ramka.stan = pMojObiekt->Stan();               // stan w³asnego obiektu 
-  ramka.moment_wyslania = clock();
-
-
-  // wys³anie komunikatu o stanie obiektu przypisanego do aplikacji (pMojObiekt):    
-  if ((licznik_sym % 100 == 0) || !czy_zmn_czestosc)
-    int iRozmiar = multi_send->send_delayed((char*)&ramka,sizeof(Ramka));
-
-  // wysy³anie komunikatu z normaln¹ czêstoœci¹ i bez opóŸnieñ:
-  //multi_send->send((char*)&ramka,sizeof(Ramka));
-
-  //       ----------------------------------
-  //    -------------------------------------
-  // ----------------------------------------
-  // ------------  Miejsce na predykcjê stanu:
-  for (int k=0;k<iLiczbaCudzychOb;k++)
-  {
+	Ramka ramka;                                    
+	ramka.stan = pMojObiekt->Stan();               // stan w³asnego obiektu 
+	ramka.moment_wyslania = clock();
 
 
+	// wys³anie komunikatu o stanie obiektu przypisanego do aplikacji (pMojObiekt):    
+	if ((licznik_sym % 100 == 0) || !czy_zmn_czestosc)
+		int iRozmiar = multi_send->send_delayed((char*)&ramka,sizeof(Ramka));
 
+	// wysy³anie komunikatu z normaln¹ czêstoœci¹ i bez opóŸnieñ:
+	//multi_send->send((char*)&ramka,sizeof(Ramka));
 
+	//       ----------------------------------
+	//    -------------------------------------
+	// ----------------------------------------
+	// ------------  Miejsce na predykcjê stanu:
+	for (int k=0;k<iLiczbaCudzychOb;k++)
+	{
 
+		// Stare (z tablicy)
+		////CudzeObiekty[k]->wPol += CudzeObiekty[k]->wV * fDt * (twA * fDt * fDt / 2);
+		//CudzeObiekty[k]->wPol += CudzeObiekty[k]->wA * fDt;
 
+		//float kat = CudzeObiekty[k]->wV_kat * fDt + (CudzeObiekty[k]->wA_kat * (fDt * fDt / 2)).dlugosc();
+		//CudzeObiekty[k]->qOrient = AsixToQuat(CudzeObiekty[k]->wV_kat, kat);
+		//CudzeObiekty[k]->wV_kat = CudzeObiekty[k]->wA_kat * fDt;
 
-  } 
+		// Dodanie kwaternionów
+		Wektor3 w_obrot = CudzeObiektyZSieci[k]->wV_kat*fDt + CudzeObiektyZSieci[k]->wA_kat*fDt*fDt / 2;
+		kwaternion q_obrot = AsixToQuat(w_obrot.znorm(), w_obrot.dlugosc());
+		CudzeObiekty[k]->qOrient = q_obrot*CudzeObiekty[k]->qOrient;
 
-}
+		// Znalezienie kierunków: przód, góra, prawo
+		Wektor3 przod = CudzeObiektyZSieci[k]->qOrient.obroc_wektor(Wektor3(1, 0, 0));
+		Wektor3 gora = CudzeObiektyZSieci[k]->qOrient.obroc_wektor(Wektor3(0, 1, 0));
+		Wektor3 prawo = CudzeObiektyZSieci[k]->qOrient.obroc_wektor(Wektor3(0, 0, 1));
+
+		// Rzutowanie wektorów wV i wA na te sk³adowe
+		Wektor3 wV_przod = przod*((CudzeObiektyZSieci[k]->wV) ^ przod);
+		Wektor3 wV_gora = gora*((CudzeObiektyZSieci[k]->wV) ^ gora);
+		Wektor3 wV_prawo = prawo*((CudzeObiektyZSieci[k]->wV) ^ prawo);
+		Wektor3 wA_przod = przod*((CudzeObiektyZSieci[k]->wA) ^ przod);
+		Wektor3 wA_gora = gora*((CudzeObiektyZSieci[k]->wA) ^ gora);
+		Wektor3 wA_prawo = prawo*((CudzeObiektyZSieci[k]->wA) ^ prawo);
+
+		// Wszystkie sk³adowe i wygaszanie sk³adowych góra i prawo (/2)
+		//wV_gora = wV_gora * poziomWygaszania;
+		//wA_gora = wA_gora * poziomWygaszania;
+		wV_prawo = wV_prawo * poziomWygaszania;
+		//wA_prawo = wA_prawo * poziomWygaszania;
+		poziomWygaszania /= 2;
+
+		Wektor3 wV = wV_przod + wV_gora + wV_prawo;
+		Wektor3 wA = wA_przod + wA_gora;
+	  
+		CudzeObiekty[k]->wPol += (wV * fDt) + wA* fDt * fDt * 1 / 2;
+		CudzeObiekty[k]->wV += wA * fDt;
+
+		auto roznicaPol = CudzeObiektyZSieci[k]->wPol - CudzeObiekty[k]->wPol;
+		auto roznicaV = CudzeObiektyZSieci[k]->wV - CudzeObiekty[k]->wV;
+		auto roznicaA = CudzeObiektyZSieci[k]->wA - CudzeObiekty[k]->wA;
+		auto roznicaOrient = CudzeObiektyZSieci[k]->qOrient - CudzeObiekty[k]->qOrient;
+		//auto roznicaOrient = CudzeObiektyZSieci[k]->qOrient * inverse(CudzeObiekty[k]->qOrient);
+
+		CudzeObiekty[k]->wPol += roznicaPol / 100; //* fDt;
+		CudzeObiekty[k]->wV += roznicaV / 100; // *fDt;
+		//CudzeObiekty[k]->wA += roznicaA / 50;
+		CudzeObiekty[k]->wA = CudzeObiektyZSieci[k]->wA;
+		CudzeObiekty[k]->qOrient += roznicaOrient / 100;
+
+	} 
+
+} // END Cykl_WS()
 
 // *****************************************************************
 // ****    Wszystko co trzeba zrobiæ podczas zamykania aplikacji
