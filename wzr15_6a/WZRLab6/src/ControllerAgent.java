@@ -95,7 +95,7 @@ public class ControllerAgent extends GuiAgent {
 		    //System.out.println("Otrzymałem od agenta nr "+numer_agenta+" ("+  msg.getSender().getName()+") numer akcji = "+akcja);
                     if (akcja == -1)  // agent chce by wylosować mu stan początkowy
                     {
-                        stany_agentow[liczba_agentow] = srodowisko.losowanie_stanu_pocz(stany_agentow, liczba_agentow);
+                        stany_agentow[liczba_agentow] = srodowisko.losuj_stan_pocz(stany_agentow);
                         System.out.println("wylosowalem agentowi "+liczba_agentow+"stan pocz = ("+
                                 stany_agentow[liczba_agentow].w+","+stany_agentow[liczba_agentow].k+")");
                         StanInagroda stan = stany_agentow[liczba_agentow];

@@ -59,12 +59,10 @@ public class UczenieZeWzm {
         // losujemy położenia początkowe wszystkich symulowanych agentów:
         for (int ag=0;ag<liczba_agentow;ag++)
         {
-            polozenia_agentow[ag] = s.losowanie_stanu_pocz(polozenia_agentow, ag);
-            // if (ag == moj_numer) polozenia_agentow[ag] = ...   // standardowo metoda s.losowanie_stanu_pocz losuje
-            // ................................................   // stan początkowy w pierwszej kolumnie. Można tego nie zmieniać,
-            // ................................................   // ale podczas uczenia czasami lepiej jest losować z całej planszy
-            // ................................................
-            // ................................................
+            polozenia_agentow[ag] = s.losuj_stan_pocz(polozenia_agentow);
+//            if (ag == moj_numer) polozenia_agentow[ag] = ...   // standardowo metoda s.losowanie_stanu_pocz losuje
+//            ................................................   // stan początkowy w pierwszej kolumnie. Można tego nie zmieniać,
+//            ................................................   // ale podczas uczenia czasami lepiej jest losować z całej planszy
 
             //System.out.printf("dla ag. %d wylosowano następujące liczby: [%d, %d]",ag,polozenia_agentow[ag][0],polozenia_agentow[ag][1]);
         }

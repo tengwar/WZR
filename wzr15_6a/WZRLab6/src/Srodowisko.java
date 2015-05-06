@@ -1,5 +1,9 @@
 
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
+import javafx.util.Pair;
 
 /*
  * To change this template, choose Tools | Templates
@@ -255,15 +259,18 @@ public class Srodowisko {
 
    StanInagroda losowanie_stanu_pocz(StanInagroda stany_innych[], int liczba_innych)
    {
-       // wybor stanow poczatkowych obiektow (tak by nie kolidowaly z innymi obiektami
+        // wybor stanow poczatkowych obiektow (tak by nie kolidowaly z innymi obiektami
         // agenta naszego i obcych agentow:
         int puste_pola[] = new int[liczba_wierszy];
         int liczba_pustych_pol = 0;
         int agenty_w_kol0[] = new int[liczba_wierszy];
+        
         for (int i=0;i<liczba_wierszy;i++) agenty_w_kol0[i] = 0;   // wyzerowanie tablicy zajętości pól pierwszej kolumny
+        
         for (int i=0;i<liczba_innych;i++) 
             if (stany_innych[i].k == 0) agenty_w_kol0[stany_innych[i].w] = i;   // umieszczenie numeru agenta znajdujacego się w pierwszej kolumnie
-        for (int i=0;i<liczba_wierszy;i++)                         // utowrzenie tablicy pustych pól w pierwszej kolum,nie
+        
+        for (int i=0;i<liczba_wierszy;i++)                         // utworzenie tablicy pustych pól w pierwszej kolumnie
             if ((pola[i][0] != 1)&&(agenty_w_kol0[i] == 0))        // jeśli nie ma w polu i przeszkody ani innego agenta         
             {
               puste_pola[liczba_pustych_pol] = i;
@@ -271,7 +278,7 @@ public class Srodowisko {
             }
 
         StanInagroda stan = new StanInagroda();
-        if (liczba_pustych_pol == 0) {   // mie da się umieścic agenta  
+        if (liczba_pustych_pol == 0) {   // nie da się umieścic agenta  
             stan.w = -1;
             stan.k = -1;
         }
@@ -284,6 +291,41 @@ public class Srodowisko {
 
         return stan;
    }
+   
+    StanInagroda losuj_stan_pocz(StanInagroda stany_innych[])
+    {
+        List<Pair<Integer, Integer>> puste_pola = new ArrayList<>();
+        List<Pair<Integer, Integer>> pola_zajęte_przez_agentow = new ArrayList<>();
+        
+        // dodaj pola bez przeszkód do listy pustych
+        for (int w = 0; w < liczba_wierszy; w++) {
+            for (int k = 0; k < liczba_kolumn; k++) {
+                if (pola[w][k] != 1) {
+                    puste_pola.add(new Pair<>(w, k));
+                }
+            }
+        }
+        
+        // zrób listę pól zajętych przez agentów
+        for (StanInagroda stan : stany_innych) {
+            pola_zajęte_przez_agentow.add(new Pair<>(stan.w, stan.k));
+        }
+        
+        // usuń pola zajęte prze agentów z listy pustych pól
+        puste_pola.removeAll(pola_zajęte_przez_agentow);
+        
+        // losuj element z listy pustych
+        Random rand = new Random();
+        int element_index = rand.nextInt(puste_pola.size());
+        Pair<Integer, Integer> polozenie = puste_pola.get(element_index);
+        
+        // stwórz obiekt do zwrócenia
+        StanInagroda stan = new StanInagroda();
+        stan.w = polozenie.getKey();    // w
+        stan.k = polozenie.getValue();  // k
+        
+        return stan;
+    }
 
 
    // Ocena  strategii dla agenta o podanym numerze nr_agenta w interakcji z innymi agentami w sposób
