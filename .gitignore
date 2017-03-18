@@ -6,6 +6,9 @@
 *wzr_log.txt
 *wzr_plik.txt
 
+# netbeans files
+/wzr15_6a/WZRLab6/nbproject/private/
+
 # User-specific files
 *.suo
 *.user
